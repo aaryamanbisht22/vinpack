@@ -45,7 +45,7 @@ def ensure_data() -> None:
         return
     fetch.RAW.mkdir(parents=True, exist_ok=True)
     with st.spinner("First launch: downloading benchmark data from OR-Library ..."):
-        fetch.fetch_orlib()
+        fetch.fetch_orlib(SCENARIO_FILES)
     bad = fetch.verify_manifest()
     if bad:
         st.error(f"Downloaded files failed their SHA-256 check: {bad}")

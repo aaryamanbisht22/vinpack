@@ -40,8 +40,9 @@ def _get(url: str) -> bytes:
         return r.read()
 
 
-def fetch_orlib() -> None:
-    for name in ORLIB_FILES:
+def fetch_orlib(names: list[str] | None = None) -> None:
+    """Download OR-Library files (all of them, or just ``names``) that are not present yet."""
+    for name in names or ORLIB_FILES:
         dest = RAW / name
         if dest.exists():
             continue
