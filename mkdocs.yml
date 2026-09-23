@@ -1,0 +1,24 @@
+site_name: vinpack
+site_description: A three-layer knapsack pipeline for daily vehicle allocation, matching, and loading
+repo_url: https://github.com/REPLACE_ME/vinpack
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: blue grey
+      toggle: {icon: material/weather-night, name: Dark mode}
+    - scheme: slate
+      primary: blue grey
+      toggle: {icon: material/weather-sunny, name: Light mode}
+  features: [navigation.sections, content.code.copy]
+nav:
+  - Home: index.md
+  - How it works: how-it-works.md
+  - Formulations: formulations.md
+  - Results: results.md
+markdown_extensions:
+  - pymdownx.arithmatex: {generic: true}
+  - tables
+  - admonition
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js

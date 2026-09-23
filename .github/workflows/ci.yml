@@ -1,0 +1,36 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: src
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync
+
+      - name: Cache benchmark data
+        uses: actions/cache@v4
+        with:
+          path: data/raw
+          key: bench-data-${{ hashFiles('data/MANIFEST.sha256') }}
+
+      - name: Fetch OR-Library data (checksummed)
+        run: uv run --no-sync python data/fetch.py --no-pisinger
+      - name: Fetch Pisinger data (large, best effort)
+        continue-on-error: true
+        timeout-minutes: 15
+        run: uv run --no-sync python data/fetch.py
+
+      - run: uv run --no-sync ruff check src tests benchmarks app
+      - run: uv run --no-sync pytest -q -m "not slow"
+      - name: Quick benchmark smoke run
+        run: uv run --no-sync python -m vinpack.cli bench --quick --out /tmp/bench
