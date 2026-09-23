@@ -31,9 +31,43 @@ MUTED = "#8a8985"
 st.set_page_config(page_title="vinpack - allocation, matching, loading", layout="wide")
 
 
+# Files the demo scenario is built from (see pipeline/adapter.py).
+SCENARIO_FILES = ["mknapcb5.txt", "mkcbres.txt", "gapc.txt", "binpack2.txt"]
+PARETO_WEIGHTS = [0, 0.1, 0.25, 0.5, 1, 2]
+
+
+@st.cache_resource
+def ensure_data() -> None:
+    """On a fresh host (e.g. Streamlit Community Cloud), download the OR-Library files once."""
+    from vinpack.io import fetch
+
+    if all((fetch.RAW / f).exists() for f in SCENARIO_FILES):
+        return
+    fetch.RAW.mkdir(parents=True, exist_ok=True)
+    with st.spinner("First launch: downloading benchmark data from OR-Library ..."):
+        fetch.fetch_orlib()
+    bad = fetch.verify_manifest()
+    if bad:
+        st.error(f"Downloaded files failed their SHA-256 check: {bad}")
+        st.stop()
+
+
 @st.cache_resource
 def scenario():
+    ensure_data()
     return load_default()
+
+
+def seed_demo_runs(con, scn) -> None:
+    """First launch with an empty store: solve the default run and the stability sweep."""
+    with st.status("First launch: solving the demo runs (about a minute) ...", expanded=True) as s:
+        st.write("14-day rolling re-solve, churn weight 0.5")
+        run_and_store(con, "default", scn, WorldConfig(days=14), DayParams(churn_weight=0.5))
+        for w in PARETO_WEIGHTS:
+            st.write(f"stability sweep: churn weight {w:g}")
+            run_and_store(con, f"pareto-{w:g}", scn, WorldConfig(days=14),
+                          DayParams(churn_weight=w, l1_time=3, l2_time=3))
+        s.update(label="Demo runs ready", state="complete")
 
 
 # One connection per script run, closed at the end of the run, so the CLI (simulate,
@@ -70,7 +104,8 @@ st.sidebar.caption("Allocation -> matching -> loading, re-solved daily. "
                    "Every number traces to an academic benchmark instance.")
 runs = store.runs(cur())
 if runs.empty:
-    st.sidebar.info("No runs yet - create one below.")
+    seed_demo_runs(cur(), scn)
+    runs = store.runs(cur())
 with st.sidebar.expander("New simulation run", expanded=runs.empty):
     new_id = st.text_input("run id", "default")
     churn = st.slider("churn weight (x mean order value)", 0.0, 2.0, 0.5, 0.05)
