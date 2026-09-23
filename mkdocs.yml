@@ -16,6 +16,7 @@ nav:
   - How it works: how-it-works.md
   - Formulations: formulations.md
   - Results: results.md
+  - Study guide: STUDY_GUIDE.md
 markdown_extensions:
   - pymdownx.arithmatex: {generic: true}
   - tables

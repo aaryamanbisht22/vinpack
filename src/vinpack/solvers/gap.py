@@ -10,6 +10,7 @@ Variables are laid out agent-major: column k = i * n + j.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -128,10 +129,6 @@ def solve_lp(inst: GAPInstance, backend: str = "highs"):
 
 def greedy_regret(inst: GAPInstance) -> GAPResult:
     """Martello-Toth style regret heuristic followed by shift/swap local search."""
-    import time
-
-    from vinpack.solvers.lagrangian import _repair_gap
-
     t0 = time.perf_counter()
     sign = 1.0 if inst.sense == "max" else -1.0
     C = sign * inst.costs.astype(float)
@@ -142,3 +139,98 @@ def greedy_regret(inst: GAPInstance) -> GAPResult:
                          time.perf_counter() - t0, "infeasible")
     return GAPResult(assign, value_of(inst, assign), np.nan, "greedy-regret",
                      time.perf_counter() - t0)
+
+
+# ------------------------------------------------------------------ heuristic helpers
+def _repair_gap(C, R, cap, X) -> np.ndarray | None:
+    """Build a feasible assignment, keeping any seed assignments in X that fit (or None)."""
+    m, n = C.shape
+    assign = np.full(n, -1)
+    load = np.zeros(m, dtype=np.int64)
+    # 1) keep single assignments; for multiply-assigned jobs keep the best-value agent
+    for j in np.argsort(-C.max(axis=0)):
+        agents = np.flatnonzero(X[:, j])
+        if len(agents):
+            i = agents[np.argmax(C[agents, j])]
+            if load[i] + R[i, j] <= cap[i]:
+                assign[j], load[i] = i, load[i] + R[i, j]
+    # 2) place unassigned jobs by regret (difference between best and second-best feasible value)
+    todo = list(np.flatnonzero(assign < 0))
+    while todo:
+        best_j, best_i, best_regret = None, None, -np.inf
+        for j in todo:
+            feas = np.flatnonzero(load + R[:, j] <= cap)
+            if len(feas) == 0:
+                return _shift_to_make_room(C, R, cap, assign, load, todo)
+            vals = np.sort(C[feas, j])[::-1]
+            regret = vals[0] - (vals[1] if len(vals) > 1 else -1e9)
+            if regret > best_regret:
+                best_regret, best_j, best_i = regret, j, feas[np.argmax(C[feas, j])]
+        assign[best_j] = best_i
+        load[best_i] += R[best_i, best_j]
+        todo.remove(best_j)
+    return _local_search_gap(C, R, cap, assign, load)
+
+
+def _shift_to_make_room(C, R, cap, assign, load, todo):
+    """Last resort: try to move an assigned job to free room for an unplaceable one."""
+    for j in list(todo):
+        placed = False
+        for i in np.argsort(-C[:, j]):
+            need = load[i] + R[i, j] - cap[i]
+            for k in np.flatnonzero(assign == i):
+                if R[i, k] < need:
+                    continue
+                alt = np.flatnonzero((load + R[:, k] <= cap) & (np.arange(len(cap)) != i))
+                if len(alt):
+                    i2 = alt[np.argmax(C[alt, k])]
+                    assign[k] = i2
+                    load[i] -= R[i, k]
+                    load[i2] += R[i2, k]
+                    assign[j] = i
+                    load[i] += R[i, j]
+                    placed = True
+                    break
+            if placed:
+                break
+        if not placed:
+            return None
+        todo.remove(j)
+    return _local_search_gap(C, R, cap, assign, load)
+
+
+def _local_search_gap(C, R, cap, assign, load, rounds: int = 20):
+    m, n = C.shape
+    for _ in range(rounds):
+        improved = False
+        # shift moves
+        for j in range(n):
+            i = assign[j]
+            feas = (load + R[:, j] <= cap)
+            feas[i] = False
+            gain = np.where(feas, C[:, j] - C[i, j], -np.inf)
+            k = int(np.argmax(gain))
+            if gain[k] > 1e-9:
+                load[i] -= R[i, j]
+                load[k] += R[k, j]
+                assign[j] = k
+                improved = True
+        # swap moves
+        for j1 in range(n):
+            for j2 in range(j1 + 1, n):
+                a, b = assign[j1], assign[j2]
+                if a == b:
+                    continue
+                d = C[b, j1] + C[a, j2] - C[a, j1] - C[b, j2]
+                if d <= 1e-9:
+                    continue
+                if (load[a] - R[a, j1] + R[a, j2] <= cap[a]
+                        and load[b] - R[b, j2] + R[b, j1] <= cap[b]):
+                    load[a] += R[a, j2] - R[a, j1]
+                    load[b] += R[b, j1] - R[b, j2]
+                    assign[j1], assign[j2] = b, a
+                    improved = True
+        if not improved:
+            break
+    assert np.all(load <= cap) and np.all(assign >= 0), (load, cap)
+    return assign

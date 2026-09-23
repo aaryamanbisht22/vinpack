@@ -20,11 +20,8 @@ dependencies = [
     "anthropic>=0.40",
 ]
 
-[project.optional-dependencies]
-gurobi = ["gurobipy>=11"]
-
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.6", "mkdocs-material>=9.5", "gurobipy>=11"]
+dev = ["pytest>=8", "ruff>=0.6", "mkdocs-material>=9.5"]
 
 [project.scripts]
 vinpack = "vinpack.cli:app"
@@ -39,7 +36,7 @@ packages = ["src/vinpack"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
-markers = ["slow: larger benchmark checks", "gurobi: needs gurobipy"]
+markers = ["slow: larger benchmark checks"]
 
 [tool.ruff]
 line-length = 100

@@ -1,15 +1,14 @@
-"""Solver-agnostic MILP layer: one matrix-form model, two backends (HiGHS, Gurobi).
+"""MILP layer: every exact model is one matrix-form ``LinearModel`` solved by HiGHS.
 
-Every exact model in vinpack is built as a ``LinearModel`` (objective vector,
-sparse constraint matrix with row ranges, column bounds, integrality) and handed
-to ``solve``. Keeping the model in matrix form means the same object runs on
-HiGHS (open source, default, used in CI) or Gurobi (if ``gurobipy`` and a
-license are present), and the backend-parity test can compare them directly.
+Each model in vinpack is built as a ``LinearModel`` (objective vector, sparse
+constraint matrix with row ranges, column bounds, integrality) and handed to
+``solve``. Keeping models in plain matrix form keeps the solver swappable: another
+MILP solver (e.g. Gurobi) would be one more branch in ``solve`` that reads the
+same arrays.
 
 Dual convention: ``Solution.row_duals[i]`` is d(objective)/d(rhs_i) for the
 LP relaxation, i.e. the marginal value of one more unit of row i's binding side,
-in the model's own sense. This is normalised across backends and verified by a
-finite-difference test.
+in the model's own sense. Verified by a finite-difference test.
 """
 
 from __future__ import annotations
@@ -21,7 +20,7 @@ from typing import Literal
 import numpy as np
 import scipy.sparse as sp
 
-Backend = Literal["highs", "gurobi"]
+Backend = Literal["highs"]
 INF = float("inf")
 
 
@@ -76,20 +75,6 @@ class Solution:
         return self.status in ("optimal", "time_limit") and self.x is not None and len(self.x) > 0
 
 
-def available_backends() -> list[str]:
-    out = ["highs"]
-    try:
-        import gurobipy as gp
-
-        with gp.Env(params={"OutputFlag": 0}) as env, gp.Model(env=env) as m:
-            m.addVar()
-            m.optimize()
-        out.append("gurobi")
-    except Exception:
-        pass
-    return out
-
-
 def solve(
     model: LinearModel,
     backend: Backend = "highs",
@@ -104,9 +89,7 @@ def solve(
         model = model.relaxed()
     if backend == "highs":
         return _solve_highs(model, time_limit, mip_gap, warm_start, threads, verbose)
-    if backend == "gurobi":
-        return _solve_gurobi(model, time_limit, mip_gap, warm_start, threads, verbose)
-    raise ValueError(f"unknown backend {backend!r}")
+    raise ValueError(f"unknown backend {backend!r} (only 'highs' is built in)")
 
 
 # --------------------------------------------------------------------------- HiGHS
@@ -173,68 +156,9 @@ def _solve_highs(model, time_limit, mip_gap, warm_start, threads, verbose) -> So
     return Solution(status, obj, x, obj, runtime, "highs", row_duals=duals, reduced_costs=rc)
 
 
-# -------------------------------------------------------------------------- Gurobi
-def _solve_gurobi(model, time_limit, mip_gap, warm_start, threads, verbose) -> Solution:
-    import gurobipy as gp
-    from gurobipy import GRB
-
-    env = gp.Env(empty=True)
-    env.setParam("OutputFlag", int(verbose))
-    env.start()
-    m = gp.Model(env=env)
-    m.Params.TimeLimit = float(time_limit)
-    m.Params.MIPGap = float(mip_gap)
-    if threads:
-        m.Params.Threads = int(threads)
-    vtype = np.where(model.integer, GRB.INTEGER, GRB.CONTINUOUS)
-    lb = np.where(np.isfinite(model.col_lb), model.col_lb, -GRB.INFINITY)
-    ub = np.where(np.isfinite(model.col_ub), model.col_ub, GRB.INFINITY)
-    x = m.addMVar(model.n_cols, lb=lb, ub=ub, vtype=vtype)
-    m.setObjective(model.c @ x + model.obj_offset,
-                   GRB.MAXIMIZE if model.sense == "max" else GRB.MINIMIZE)
-
-    A = model.A.tocsr()
-    rl, ru = np.asarray(model.row_lb, float), np.asarray(model.row_ub, float)
-    eq = np.isfinite(rl) & np.isfinite(ru) & (rl == ru)
-    le = np.isfinite(ru) & ~eq
-    ge = np.isfinite(rl) & ~eq
-    groups = {}
-    for tag, mask, sense, rhs in (("eq", eq, "=", ru), ("le", le, "<", ru), ("ge", ge, ">", rl)):
-        idx = np.flatnonzero(mask)
-        if len(idx):
-            groups[tag] = (idx, m.addMConstr(A[idx], x, sense, rhs[idx]))
-    if warm_start is not None and np.any(model.integer):
-        x.Start = np.asarray(warm_start, dtype=float)
-
-    t0 = time.perf_counter()
-    m.optimize()
-    runtime = time.perf_counter() - t0
-    status = {GRB.OPTIMAL: "optimal", GRB.TIME_LIMIT: "time_limit",
-              GRB.INFEASIBLE: "infeasible"}.get(m.Status, "other")
-    if m.SolCount == 0:
-        m.dispose()
-        env.dispose()
-        return Solution(status, np.nan, np.array([]), np.nan, runtime, "gurobi")
-    xv = np.asarray(x.X, dtype=float)
-    obj = float(m.ObjVal)
-    if m.IsMIP:
-        out = Solution(status, obj, xv, float(m.ObjBound), runtime, "gurobi",
-                       extra={"nodes": int(m.NodeCount)})
-    else:
-        duals = np.zeros(model.n_rows)
-        for idx, constr in groups.values():
-            duals[idx] += np.asarray(constr.Pi, dtype=float)
-        # Gurobi's Pi is d(obj)/d(rhs) for both senses already.
-        out = Solution(status, obj, xv, obj, runtime, "gurobi",
-                       row_duals=duals, reduced_costs=np.asarray(x.RC, dtype=float))
-    m.dispose()
-    env.dispose()
-    return out
-
-
 # ------------------------------------------------------------------------- helpers
 def build(
-    c, rows: list[tuple[np.ndarray, np.ndarray]] | sp.spmatrix, row_lb, row_ub,
+    c, rows: sp.spmatrix | np.ndarray, row_lb, row_ub,
     integer=True, col_lb=0.0, col_ub=1.0, sense="max", row_names=None, obj_offset=0.0,
 ) -> LinearModel:
     """Convenience constructor; ``rows`` is a sparse matrix."""

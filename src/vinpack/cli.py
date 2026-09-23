@@ -44,7 +44,7 @@ def simulate(
     days: int = 14,
     churn: float = typer.Option(0.5, help="churn penalty, x mean order value / lane cost"),
     seed: int = 7,
-    backend: str = typer.Option("highs", help="highs | gurobi"),
+    backend: str = typer.Option("highs", help="MILP solver (highs)"),
     l1_time: float = 5.0,
     l2_time: float = 5.0,
     db: Path = typer.Option(None, help="DuckDB file (default results/vinpack.duckdb)"),

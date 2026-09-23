@@ -5,11 +5,10 @@
          x_j in {0, 1}              order j is filled this cycle or not
 
 Methods:
-* ``solve_mip``     exact MIP on HiGHS or Gurobi (with optional stability terms).
+* ``solve_mip``     exact MIP on HiGHS (with optional stability terms).
 * ``solve_lp``      LP relaxation, returning pool duals and order reduced costs.
 * ``greedy_dual``   Chu-Beasley style heuristic: rank orders by p_j / (u . r_j)
-                    with u = LP duals, drop-then-add repair, then 1-swap search.
-The Lagrangian method lives in ``lagrangian.py``.
+                    with u = LP duals, then 1-swap search.
 """
 
 from __future__ import annotations

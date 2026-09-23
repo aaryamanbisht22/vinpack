@@ -31,7 +31,6 @@ from vinpack.io.pisinger import read_pisinger  # noqa: E402
 from vinpack.solvers import bpp, gap, mkp  # noqa: E402
 from vinpack.solvers.colgen import column_generation  # noqa: E402
 from vinpack.solvers.kp_dp import kp_bb, solve_knapsack  # noqa: E402
-from vinpack.solvers.lagrangian import gap_lagrangian, mkp_lagrangian  # noqa: E402
 
 RAW = ROOT / "data" / "raw"
 
@@ -96,11 +95,6 @@ def bench_l1(quick: bool, backend: str) -> list[dict]:
             rows.append(_row("L1 allocation (MKP)", fam, inst.name, "dual-ratio greedy + 1-swap",
                              g.value, ref, "best known", "max", g.runtime + 0.0,
                              feasible=mkp.is_feasible(inst, g.x)))
-            L = mkp_lagrangian(inst, iters=60 if quick else 150, lp_duals=lp.duals)
-            rows.append(_row("L1 allocation (MKP)", fam, inst.name, "Lagrangian (KP subproblem)",
-                             L.value, ref, "best known", "max", L.runtime, bound=L.bound,
-                             feasible=mkp.is_feasible(inst, L.x), lp_bound=lp.value,
-                             bound_improvement_vs_lp=lp.value - L.bound))
             r = mkp.solve_mip(inst, backend, time_limit=limit)
             rows.append(_row("L1 allocation (MKP)", fam, inst.name, f"MIP ({backend}, {limit:g}s)",
                              r.value, ref, "best known", "max", r.runtime, bound=r.bound,
@@ -127,12 +121,6 @@ def bench_l2(quick: bool, backend: str) -> list[dict]:
             rows.append(_row("L2 matching (GAP)", fam, inst.name, f"MIP ({backend}, {limit:g}s)",
                              r.value, ref, kind, inst.sense, r.runtime, bound=r.bound,
                              proven=r.status == "optimal", feasible=gap.is_feasible(inst, r.assign)))
-            L = gap_lagrangian(inst, iters=150 if quick else 300, time_limit=limit)
-            ok = L.x.min() >= 0 and gap.is_feasible(inst, L.x)
-            rows.append(_row("L2 matching (GAP)", fam, inst.name, "Lagrangian (KP per agent)",
-                             L.value if ok else np.nan, ref, kind, inst.sense, L.runtime,
-                             bound=L.bound, feasible=ok,
-                             proven=ok and abs(L.bound - L.value) < 1 - 1e-9))
             g = gap.greedy_regret(inst)
             rows.append(_row("L2 matching (GAP)", fam, inst.name, "regret greedy + local search",
                              g.value, ref, kind, inst.sense, g.runtime,

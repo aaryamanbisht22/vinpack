@@ -4,7 +4,6 @@ import numpy as np
 
 from vinpack.io.orlib import read_mknap
 from vinpack.solvers import mkp
-from vinpack.solvers.lagrangian import mkp_lagrangian
 
 
 def _insts(raw):
@@ -39,11 +38,9 @@ def test_heuristics_feasible_and_bounds_valid(raw):
     inst = _insts(raw)[0]
     lp = mkp.solve_lp(inst)
     g = mkp.greedy_dual(inst, lp.duals)
-    L = mkp_lagrangian(inst, lp_duals=lp.duals)
-    assert mkp.is_feasible(inst, g.x) and mkp.is_feasible(inst, L.x)
-    assert g.value <= inst.best_known and L.value <= inst.best_known
-    # the KP-subproblem Lagrangian bound is valid and at least as tight as the LP bound
-    assert inst.best_known <= L.bound <= np.floor(lp.value)
+    assert mkp.is_feasible(inst, g.x)
+    # a heuristic can never beat the optimum, and the LP relaxation is an upper bound
+    assert g.value <= inst.best_known <= lp.value
 
 
 def test_stability_offset_keeps_objective_consistent(raw):

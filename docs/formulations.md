@@ -8,16 +8,9 @@ $$
 \max \sum_j p_j x_j \quad \text{s.t.} \quad \sum_j r_{ij} x_j \le b_i \;\; \forall i, \qquad x_j \in \{0,1\}
 $$
 
-**Lagrangian with a knapsack subproblem.** Keep the pool $k$ that carries the most LP value, and relax
-the others with multipliers $\lambda \ge 0$:
-
-$$
-L(\lambda) = \sum_{i \ne k} \lambda_i b_i + \max_{x \in \{0,1\}^n} \Big\{ \sum_j \big(p_j - \textstyle\sum_{i\ne k} \lambda_i r_{ij}\big) x_j : \sum_j r_{kj} x_j \le b_k \Big\}
-$$
-
-The inner problem is a 0-1 knapsack, solved exactly by the L0 DP. It lacks the integrality property,
-so $\min_\lambda L(\lambda)$ can be strictly tighter than the LP bound. The benchmark reports how much
-tighter. Multipliers start at the LP duals and are updated by subgradient steps with a Polyak step size.
+**Greedy by dual price.** Solve the LP relaxation, read each pool's shadow price $u_i$, and rank
+orders by $p_j / \sum_i u_i r_{ij}$: value per unit of *priced* supply. Fill in that order, then try
+one-for-one swaps. It runs in milliseconds and lands within 0.1–2% of the best-known value on average.
 
 ## L2: Matching (generalized assignment)
 
@@ -25,10 +18,8 @@ $$
 \min \sum_{a,j} c_{aj} y_{aj} \quad \text{s.t.} \quad \sum_a y_{aj} = 1 \;\; \forall j, \qquad \sum_j r_{aj} y_{aj} \le b_a \;\; \forall a, \qquad y \in \{0,1\}
 $$
 
-**Lagrangian (Ross–Soland / Fisher–Jaikumar–Van Wassenhove).** Relax the assignment rows with
-free multipliers $u_j$. The problem decomposes into one 0-1 knapsack per DC, each solved by L0. A
-repair heuristic (keep the best agent, place the rest by regret, then shift/swap local search)
-turns each relaxed solution into a feasible assignment.
+**Regret greedy.** Place the order whose best and second-best delivery centers differ most
+(the one that would lose most by waiting), then improve with shift and swap moves.
 
 ## L3: Loading (bin packing)
 

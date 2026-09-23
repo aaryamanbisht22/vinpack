@@ -20,7 +20,9 @@ from dataclasses import dataclass, field
 
 from vinpack.explain.evidence import Evidence
 
-MODEL = os.environ.get("VINPACK_MODEL", "claude-opus-5")
+# Optional: only used when Anthropic credentials exist. Haiku is the cheapest model;
+# override with VINPACK_MODEL (e.g. claude-opus-5) for harder multi-step questions.
+MODEL = os.environ.get("VINPACK_MODEL", "claude-haiku-4-5")
 
 SYSTEM = """You are the planning analyst for a vehicle demand-planning optimiser.
 Each day the optimiser (1) allocates scarce supply to customer orders (multidimensional
@@ -186,15 +188,12 @@ def ask(ev: Evidence, question: str, client=None, max_turns: int = 8) -> AgentAn
     sources = [context, question]
     response = None
     for _ in range(max_turns):
-        response = client.beta.messages.create(
+        response = client.messages.create(
             model=MODEL,
-            max_tokens=16000,
+            max_tokens=4096,
             system=SYSTEM,
             tools=TOOLS,
             messages=messages,
-            thinking={"type": "adaptive"},
-            betas=["server-side-fallback-2026-07-01"],
-            fallbacks="default",
         )
         if response.stop_reason == "refusal":
             return AgentAnswer("The model declined this request.", calls)

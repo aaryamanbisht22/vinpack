@@ -4,13 +4,13 @@ Each day, vinpack runs a three-layer pipeline and every layer is a knapsack-fami
 
 | Layer | Planning stage | Problem | Exact method | Fast method |
 |---|---|---|---|---|
-| **L1 Allocation** | Build plan / firming: *which orders get built this cycle?* | Multidimensional knapsack: orders compete for 10 scarce supply pools | MIP (HiGHS or Gurobi) | Dual-ratio greedy; Lagrangian relaxation with a knapsack subproblem |
-| **L2 Matching** | Vehicle plan: *which delivery center fulfils each order?* | Generalized assignment: every filled order goes to one DC, and DCs have handling capacity | MIP | Lagrangian relaxation (one knapsack per DC); regret greedy |
+| **L1 Allocation** | Build plan / firming: *which orders get built this cycle?* | Multidimensional knapsack: orders compete for 10 scarce supply pools | MIP (HiGHS) | Dual-ratio greedy |
+| **L2 Matching** | Vehicle plan: *which delivery center fulfils each order?* | Generalized assignment: every filled order goes to one DC, and DCs have handling capacity | MIP | Regret greedy + local search |
 | **L3 Loading** | Routing: *how many carriers leave each DC?* | Bin packing: order load units onto carriers of capacity 150 | Column generation, then an arc-flow MIP if needed | FFD / BFD |
 | **L0 Kernel** | — | 0-1 knapsack | Numba DP (float profits) | Branch and bound |
 
-The **L0 kernel is reused three times**: as the column-generation pricing problem in L3, as the
-Lagrangian subproblem in L1, and as the per-DC subproblem in the L2 Lagrangian.
+The **L0 kernel is the engine inside L3**: every column-generation step asks it "what is the
+most valuable carrier load at today's prices?"
 
 ## Re-solving every day without thrashing the plan
 
@@ -38,7 +38,7 @@ The explainer can only cite facts computed by the solver:
   value change, the churn change and the churn-adjusted objective change, so a what-if that buys
   value by reshuffling yesterday's plan is not mistaken for a free win.
 
-The Claude agent (`claude-opus-5`, set by `VINPACK_MODEL`) calls these as tools. After it
+The optional Claude agent (`claude-haiku-4-5` by default, set by `VINPACK_MODEL`; only used if an API key is set) calls these as tools. After it
 answers, every number in the answer is checked against the tool outputs, and numbers without a
 source are flagged. What-ifs are **proposals**: nothing changes until a planner clicks *Approve*.
 Approving replays the run from that day into a new run id, so the original run is never

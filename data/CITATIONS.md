@@ -11,5 +11,4 @@ Raw files are not committed. `make data` downloads them and `data/MANIFEST.sha25
 | `knapPI_{1-4}_*_1000` | L0 knapsack kernel | D. Pisinger | D. Pisinger, "Where are the hard knapsack problems?", *Computers & OR* 32 (2005) 2271-2284 |
 
 Methods: P.C. Gilmore and R.E. Gomory, *Operations Research* 9 (1961); J.M. Valério de Carvalho, *Annals of OR* 86 (1999);
-S. Martello and P. Toth, *Knapsack Problems* (Wiley, 1990); G.T. Ross and R.M. Soland, *Math. Programming* 8 (1975);
-M.L. Fisher, R. Jaikumar and L.N. Van Wassenhove, *Management Science* 32 (1986).
+S. Martello and P. Toth, *Knapsack Problems* (Wiley, 1990).

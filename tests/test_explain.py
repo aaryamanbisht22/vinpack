@@ -64,7 +64,7 @@ class FakeClient:
                                 input={"day": day, "order_id": order})]),
             None,  # final answer is built from the tool output below
         ]
-        self.beta = SimpleNamespace(messages=SimpleNamespace(create=self.create))
+        self.messages = SimpleNamespace(create=self.create)
 
     def create(self, **kwargs):
         self.calls.append(kwargs)
