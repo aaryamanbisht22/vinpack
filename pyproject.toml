@@ -1,0 +1,53 @@
+[project]
+name = "vinpack"
+version = "0.1.0"
+description = "A three-layer knapsack pipeline for daily vehicle allocation, matching, and loading, benchmarked on academic instances."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+dependencies = [
+    "numpy>=2.0",
+    "scipy>=1.13",
+    "highspy>=1.7",
+    "numba>=0.60",
+    "pandas>=2.2",
+    "pyarrow>=16",
+    "duckdb>=1.0",
+    "typer>=0.12",
+    "rich>=13",
+    "streamlit>=1.38",
+    "plotly>=5.22",
+    "anthropic>=0.40",
+]
+
+[project.optional-dependencies]
+gurobi = ["gurobipy>=11"]
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.6", "mkdocs-material>=9.5", "gurobipy>=11"]
+
+[project.scripts]
+vinpack = "vinpack.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vinpack"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+markers = ["slow: larger benchmark checks", "gurobi: needs gurobipy"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501", "E741", "B007"]  # B007: loop counters are read after the loop
+[tool.ruff.lint.flake8-bugbear]
+# frozen dataclasses and typer options are safe as defaults
+extend-immutable-calls = ["typer.Option", "vinpack.simulate.scenarios.WorldConfig",
+                          "vinpack.pipeline.run.DayParams", "WorldConfig", "DayParams"]
