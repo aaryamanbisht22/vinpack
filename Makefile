@@ -3,7 +3,7 @@
 export PYTHONPATH := src
 RUN := uv run --no-sync
 
-.PHONY: setup data test test-all lint bench bench-quick simulate pareto app docs publish clean
+.PHONY: setup data test test-all lint bench bench-quick simulate pareto app docs publish demo-db clean
 
 setup:            ## install deps (incl. dev) and fetch benchmark data
 	uv sync
@@ -44,3 +44,8 @@ clean:
 
 publish:          ## regenerate docs/results.md from results/ and the DuckDB store
 	$(RUN) python benchmarks/publish.py
+
+demo-db:          ## rebuild the committed demo store the hosted dashboard starts from
+	rm -f results/demo.duckdb
+	$(RUN) python -m vinpack.cli simulate --days 14 --churn 0.5 --db results/demo.duckdb
+	$(RUN) python -m vinpack.cli pareto --db results/demo.duckdb

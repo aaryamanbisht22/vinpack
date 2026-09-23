@@ -70,6 +70,15 @@ def seed_demo_runs(con, scn) -> None:
         s.update(label="Demo runs ready", state="complete")
 
 
+# Fresh host: start from the committed demo store (built by `make demo-db`, i.e. the same
+# `simulate` + `pareto` commands), so the first visitor doesn't wait for the solves.
+DEMO_DB = ROOT / "results" / "demo.duckdb"
+if not store.DEFAULT_DB.exists() and DEMO_DB.exists():
+    import shutil
+
+    store.DEFAULT_DB.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(DEMO_DB, store.DEFAULT_DB)
+
 # One connection per script run, closed at the end of the run, so the CLI (simulate,
 # pareto, publish) can write to the same DuckDB file while the dashboard is open.
 _CON = store.connect()

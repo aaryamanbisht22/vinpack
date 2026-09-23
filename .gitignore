@@ -10,3 +10,4 @@ results/*.duckdb.wal
 results/*.log
 .DS_Store
 .env
+!results/demo.duckdb
