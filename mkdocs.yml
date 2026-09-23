@@ -1,6 +1,6 @@
 site_name: vinpack
 site_description: A three-layer knapsack pipeline for daily vehicle allocation, matching, and loading
-repo_url: https://github.com/REPLACE_ME/vinpack
+repo_url: https://github.com/aaryamanbisht22/vinpack
 theme:
   name: material
   palette:

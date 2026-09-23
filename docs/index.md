@@ -10,7 +10,7 @@ explanation is checked against solver output.
 * [Results](results.md): per-layer benchmarks against published optima, and the value-vs-stability frontier
 
 ```bash
-git clone <this repo> && cd vinpack
+git clone https://github.com/aaryamanbisht22/vinpack && cd vinpack
 make setup        # uv sync + download the benchmark data (checksummed)
 make simulate     # 14-day rolling re-solve -> results/vinpack.duckdb
 make app          # dashboard: daily plan, diffs, ask-why agent, frontier, benchmarks

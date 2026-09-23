@@ -2,7 +2,7 @@
 
 **Every day: decide which orders get built from scarce supply, which delivery center fulfils each one, and how many carriers leave each center. Then do it again tomorrow without reshuffling customers who were already promised a car.**
 
-vinpack is a daily re-optimisation engine for vehicle demand planning. Each of its three layers is a knapsack-family model:
+vinpack is a daily re-optimisation engine for vehicle demand planning. Each of its three layers is a knapsack-family model. Docs: [aaryamanbisht22.github.io/vinpack](https://aaryamanbisht22.github.io/vinpack/)
 
 ```mermaid
 flowchart LR
